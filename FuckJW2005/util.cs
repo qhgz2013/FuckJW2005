@@ -14,7 +14,7 @@ namespace FuckJW2005
         public static CookieContainer default_cc = new CookieContainer();
         public delegate void NoArgSTA();
         public static event NoArgSTA RequestSucceed, RequestFailed;
-        public static Stream http_get(ref string url, string origin = null, string referer = null)
+        public static Stream http_get(ref string url, string origin = null, string referer = null, bool enable_event_callback = true, int retry_delay = 3000)
         {
             do
             {
@@ -58,22 +58,22 @@ namespace FuckJW2005
                         stream.Close();
 
                         stream_out.Seek(0, SeekOrigin.Begin);
-                        RequestSucceed?.Invoke();
+                        if (enable_event_callback && RequestSucceed != null) RequestSucceed.Invoke();
                         return stream_out;
                     }
                 }
                 catch (Exception)
                 {
-                    RequestFailed?.Invoke();
+                    if (enable_event_callback && RequestFailed != null) RequestFailed.Invoke();
                 }
                 finally
                 {
                     if (http_response != null) http_response.Close();
                 }
-                Thread.Sleep(3000);
+                if (retry_delay > 0) Thread.Sleep(retry_delay);
             } while (true);
         }
-        public static Stream http_post(ref string url, byte[] post_param, string content_type, string origin = null, string referer = null)
+        public static Stream http_post(ref string url, byte[] post_param, string content_type, string origin = null, string referer = null, bool enable_event_callback = true, int retry_delay = 3000)
         {
             do
             {
@@ -129,19 +129,19 @@ namespace FuckJW2005
                         stream.Close();
 
                         stream_out.Seek(0, SeekOrigin.Begin);
-                        RequestSucceed?.Invoke();
+                        if (enable_event_callback && RequestSucceed != null) RequestSucceed.Invoke();
                         return stream_out;
                     }
                 }
                 catch (Exception)
                 {
-                    RequestFailed?.Invoke();
+                    if (enable_event_callback && RequestFailed != null) RequestFailed.Invoke();
                 }
                 finally
                 {
                     if (http_response != null) http_response.Close();
                 }
-                Thread.Sleep(3000);
+                if (retry_delay > 0) Thread.Sleep(retry_delay);
             } while (true);
         }
     }
