@@ -1,0 +1,80 @@
+FUCK SCUT JW2005
+
+DEFAULT ENCODING: gb2312
+DEFAULT ENCODING: gb2312
+DEFAULT ENCODING: gb2312
+因为很重要所以说3遍不嫌多
+
+主页:
+
+GET http://jw2005.scuteo.com/
+(302)
+
+GET http://110.65.10.184/default2.aspx
+(200)
+
+
+获取表单的数据:
+__VIEWSTATE:
+<input type="hidden" name="__VIEWSTATE" value=".." />
+
+验证码:
+
+GET http://110.65.10.184/CheckCode.aspx
+(image/Gif)
+
+发送登陆请求:
+
+POST http://110.65.10.184/default2.aspx
+(application/x-www-form-urlencoded)
+__VIEWSTATE:
+见上
+txtUserName:
+学号
+TextBox2
+密码
+txtSecretCode
+验证码
+RadioButtonList1
+"学生"
+Button1
+空
+lbLanguage
+空
+hidPdrs
+空
+hidsc
+空
+(302)
+
+
+公选课页面
+GET/POST http://110.65.10.184/xf_xsqxxxk.aspx?xh=[学号]&xm=%D6%DC%D1%A7%B1%F3&gnmkdm=N121103
+(application/x-www-form-urlencoded)
+__EVENTTARGET (从html获取)
+__EVENTARGUMENT (从html获取)
+__VIEWSTATE (从html获取)
+ddl_kcxz (留空)|通选课
+ddl_ywyl (留空)|有|无
+ddl_kcgs (留空)|科学技术(核心)|人文科学(核心)|社会科学(核心)
+ddl xqbs 2
+ddl_sksj (留空)|(对应的上课时间)
+TextBox1 (留空)|(课程名称)
+dpkcmcGrid:txtChoosePage 1
+dpkcmcGrid:txtPageSize 15
+
+上课时间获取:在get请求后得到的html代码
+<select name="ddl_sksj" onchange="__doPostBack('ddl_sksj','')" language="javascript" id="ddl_sksj">
+  <option value="值">显示的名称</option>
+  ..
+</select>
+用个正则表达式套取值就ok了
+
+总记录数:
+<span id="dpkcmcGrid_lblTotalRecords">总记录数</span>
+总页数:
+<span id="dpkcmcGrid_lblTotalPages">总页数</span>
+
+公选选课提交
+kcmcGrid:_ctl2:xk on
+Button1 ++提交++
