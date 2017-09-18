@@ -1,8 +1,10 @@
-﻿using System;
+﻿using FuckJW2005.NetUtils;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -17,42 +19,55 @@ namespace FuckJW2005
         public Form1()
         {
             InitializeComponent();
-            util.RequestSucceed += onRequestSucceeded;
-            util.RequestFailed += onRequestFailed;
         }
-        #region UI Event callback
         private void Form1_Load(object sender, EventArgs e)
         {
             //从主页获取__VIEWSTATE信息
-            ThreadPool.QueueUserWorkItem(delegate
+            debug_output("获取网页跳转信息...");
+            var ns = new NetStream();
+            ns.HttpGetAsync(main_page_url, url_locate_callback, null);
+        }
+
+        #region UI Event callback
+        private void url_locate_callback(NetStream sender, object e)
+        {
+            //失败重试
+            if (sender.HTTP_Response == null)
             {
-                debug_output("获取网页跳转信息...");
-                var stream_main_page = util.http_get(ref main_page_url);
-                var sr_main_page = new StreamReader(stream_main_page, Encoding.Default);
+                debug_output("获取跳转信息出错，3s后重试...");
+                Thread.Sleep(3000);
+                var url = sender.HTTP_Request.RequestUri.ToString();
+                sender.Close();
 
-                var str_main_page = sr_main_page.ReadToEnd();
-                sr_main_page.Close();
+                var ns = new NetStream();
+                ns.HttpGetAsync(main_page_url, url_locate_callback, null);
+            }
 
-                var match = Regex.Match(str_main_page, "<input\\stype=\"hidden\"\\sname=\"__VIEWSTATE\"\\svalue=\"(?<value>[^\"]*?)\"\\s*/>");
-                if (match.Success)
-                {
-                    __VIEWSTATE = match.Result("${value}");
-                }
+            //将主页url更改成30X跳转后响应的url
+            main_page_url = sender.HTTP_Response.ResponseUri.ToString();
+            //获取主页面的html信息（gb2312编码）
+            var str_main_page = sender.ReadResponseString(Encoding.Default);
+            //关闭http请求
+            sender.Close();
 
-                //刷新验证码
-                refresh_captcha();
-                Invoke(new NoArgSTA(delegate
-                {
-                    login.Enabled = true;
-                }));
-            });
+            //正则匹配，获取viewstate
+            var match = Regex.Match(str_main_page, "<input\\stype=\"hidden\"\\sname=\"__VIEWSTATE\"\\svalue=\"(?<value>[^\"]*?)\"\\s*/>");
+            if (match.Success)
+            {
+                __VIEWSTATE = match.Result("${value}");
+            }
+
+            //刷新验证码
+            refresh_captcha();
+            //登陆按钮可点（委托到主线程）
+            Invoke(new ThreadStart(delegate
+            {
+                login.Enabled = true;
+            }));
         }
         private void login_Click(object sender, EventArgs e)
         {
-            ThreadPool.QueueUserWorkItem(delegate
-            {
-                post_login_data();
-            });
+            post_login_data();
         }
         private void refreshCaptcha_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
@@ -80,18 +95,16 @@ namespace FuckJW2005
             if (e.KeyChar == '\r')
                 check_login_data();
         }
-        private void onRequestSucceeded()
+        private void goFuck_Click(object sender, EventArgs e)
         {
-
-        }
-        private void onRequestFailed()
-        {
-            debug_output("请求失败，三秒后重试...");
+            if (threadUsing)
+                stop_select_course();
+            else
+                start_select_course();
         }
         #endregion
 
         #region Debug output [MTA]
-        private delegate void NoArgSTA();
         private bool ENABLE_DEBUG_LOGGING = true;
         private const int MAX_OUTPUT_ITEM_COUNT = 500;
         private void debug_output(string msg)
@@ -99,7 +112,7 @@ namespace FuckJW2005
             if (!ENABLE_DEBUG_LOGGING) return;
             var lvi = new ListViewItem(DateTime.Now.ToLongTimeString());
             lvi.SubItems.Add(msg);
-            Invoke(new NoArgSTA(delegate
+            Invoke(new ThreadStart(delegate
             {
                 if (listOutput.Items.Count > MAX_OUTPUT_ITEM_COUNT)
                     listOutput.Items.RemoveAt(0);
@@ -138,7 +151,7 @@ namespace FuckJW2005
 
             if (AtkThdCount.Value == 0) return;
             AtkThdCount.Enabled = false;
-            
+
             dosThd = new Thread[(int)AtkThdCount.Value];
             for (int i = 0; i < AtkThdCount.Value; i++)
             {
@@ -156,6 +169,8 @@ namespace FuckJW2005
         #region Auth - login
         //private string student_code = "";
         //private string student_name = "";
+
+        //验证登陆信息的完整性
         private void check_login_data()
         {
             if (string.IsNullOrEmpty(username.Text)) username.Focus();
@@ -164,6 +179,7 @@ namespace FuckJW2005
             else if (login.Enabled) login.PerformClick();
 
         }
+        //获取登陆是否成功
         private bool check_login_success(string html_in)
         {
             var suc = !Regex.Match(html_in, @"alert\('.+'\);").Success;
@@ -175,14 +191,17 @@ namespace FuckJW2005
         }
 
         private string main_page_url = "http://jw2005.scuteo.com/";
+        //返回除了最后的xxx.aspx之外的url
         private string get_session_url()
         {
             return main_page_url.Substring(0, main_page_url.LastIndexOf('/'));
         }
+        //返回url的origin地址
         private string get_origin_url()
         {
             return "http://" + new Uri(main_page_url).Host;
         }
+        //将中文按gb2312编码转义
         private string get_escape_char_str(string words)
         {
             var bytes = Encoding.Default.GetBytes(words);
@@ -193,82 +212,104 @@ namespace FuckJW2005
             }
             return sb.ToString();
         }
+        //刷新验证码
         private void refresh_captcha()
         {
             debug_output("获取验证码图片...");
             var url = get_session_url() + "/CheckCode.aspx";
 
-            var response_stream = util.http_get(ref url, get_origin_url(), main_page_url);
-            var img = Image.FromStream(response_stream);
-
-            Invoke(new NoArgSTA(delegate
+            var ns = new NetStream();
+            var header_param = new Parameters();
+            header_param.Add("Origin", get_origin_url());
+            ns.HttpGetAsync(url, (_sender, _e) =>
             {
-                captchaImg.Image = img;
-            }));
+                var memstream = new MemoryStream();
+                int readed_bytes = 0;
+                //从网络数据流转移到内存数据流中
+                const int buffer_size = 4096;
+                var buffer = new byte[buffer_size];
+                do
+                {
+                    readed_bytes = _sender.ResponseStream.Read(buffer, 0, buffer_size);
+                    memstream.Write(buffer, 0, readed_bytes);
+                } while (readed_bytes > 0);
+                ns.Close();
+                memstream.Seek(0, SeekOrigin.Begin);
+
+                var img = Image.FromStream(memstream); //从内存流中创建图像
+                //主线程委托
+                Invoke(new ThreadStart(delegate
+                {
+                    captchaImg.Image = img;
+                }));
+            }, headerParam: header_param);
         }
-        private bool post_login_data()
+        private void post_login_data()
         {
             debug_output("发送登陆数据...");
-            Invoke(new NoArgSTA(delegate
-            {
-                login.Text = "登陆中";
-                login.Enabled = false;
-            }));
-            var sb = new StringBuilder();
-            sb.Append("__VIEWSTATE=");
-            sb.Append(System.Uri.EscapeDataString(__VIEWSTATE));
-            sb.Append("&txtUserName=");
-            sb.Append(System.Uri.EscapeDataString(username.Text));
-            sb.Append("&TextBox2=");
-            sb.Append(System.Uri.EscapeDataString(password.Text));
-            sb.Append("&txtSecretCode=");
-            sb.Append(System.Uri.EscapeDataString(capcha.Text));
-            sb.Append("&RadioButtonList1=学生&Button1=&lbLanguage=&hidPdrs=&hidsc=");
+            login.Text = "登陆中";
+            login.Enabled = false;
 
-            var post_data = Encoding.Default.GetBytes(sb.ToString());
+            //登陆参数
+            var query_param = new Parameters();
+            query_param.Add("__VIEWSTATE", __VIEWSTATE);
+            query_param.Add("txtUserName", username.Text);
+            query_param.Add("TextBox2", password.Text);
+            query_param.Add("txtSecretCode", capcha.Text);
+            query_param.Add("RadioButtonList1", "学生");
+            query_param.Add("Button1", "");
+            query_param.Add("lbLanguage", "");
+            query_param.Add("hidPdrs", "");
+            query_param.Add("hidsc", "");
+
+            var post_data = Encoding.Default.GetBytes(query_param.BuildQueryString());
 
             string next_url = main_page_url;
-            var response_stream = util.http_post(ref next_url, post_data, "application/x-www-form-urlencoded", get_origin_url(), main_page_url);
-
-            var response_sr = new StreamReader(response_stream);
-            var response_str = response_sr.ReadToEnd();
-            response_sr.Close();
-
-            var login_status = check_login_success(response_str);
-            if (login_status)
+            var ns = new NetStream();
+            var header_param = new Parameters();
+            header_param.Add("Origin", get_origin_url());
+            //异步post
+            ns.HttpPostAsync(next_url, post_data.Length, (_sender, _e) =>
             {
-                Invoke(new NoArgSTA(delegate
-                {
-                    login.Text = "已登陆";
-                    username.Enabled = false;
-                    password.Enabled = false;
-                    refreshCaptcha.Enabled = false;
-                    capcha.Enabled = false;
-                    login.Enabled = false;
-                }));
-                debug_output("登陆成功");
+                //发送request body
+                _sender.RequestStream.Write(post_data, 0, post_data.Length);
 
-                get_public_course();
-            }
-            else
-            {
-                Invoke(new NoArgSTA(delegate
+                //异步获取response
+                _sender.HttpPostResponseAsync((_sender2, _e2) =>
                 {
-                    login.Text = "登陆";
-                    login.Enabled = true;
-                    capcha.Text = "";
-                }));
-                debug_output("登陆失败");
-                refresh_captcha();
-            }
-            return login_status;
-        }
-        private void goFuck_Click(object sender, EventArgs e)
-        {
-            if (threadUsing)
-                stop_select_course();
-            else
-                start_select_course();
+                    //response body的网页代码
+                    var response_str = _sender2.ReadResponseString(Encoding.Default);
+                    _sender2.Close();
+
+                    //检查登陆状态
+                    var login_status = check_login_success(response_str);
+                    if (login_status)
+                    {
+                        Invoke(new ThreadStart(delegate
+                        {
+                            login.Text = "已登陆";
+                            username.Enabled = false;
+                            password.Enabled = false;
+                            refreshCaptcha.Enabled = false;
+                            capcha.Enabled = false;
+                            login.Enabled = false;
+                        }));
+                        debug_output("登陆成功");
+                        get_public_course();
+                    }
+                    else
+                    {
+                        Invoke(new ThreadStart(delegate
+                        {
+                            login.Text = "登陆";
+                            login.Enabled = true;
+                            capcha.Text = "";
+                        }));
+                        debug_output("登陆失败");
+                        refresh_captcha();
+                    }
+                });
+            }, postContentType: NetStream.DEFAULT_CONTENT_TYPE_PARAM, headerParam: header_param);
         }
         #endregion
 
@@ -290,40 +331,58 @@ namespace FuckJW2005
         {
             var url = get_session_url() + "/xf_xsqxxxk.aspx?xh=" + username.Text + "&gnmkdm=N121103";
 
-            Stream response_stream = null;
+            var ns = new NetStream();
+            var header_param = new Parameters();
+            header_param.Add("Origin", get_origin_url());
+            header_param.Add("Referer", main_page_url);
             if (get_mode)
             {
                 debug_output("初始化选课列表数据...");
-                response_stream = util.http_get(ref url, get_origin_url(), main_page_url);
+                //get模式下获取选课课表
+                var thd = new Thread(new ThreadStart(delegate
+                {
+                    ns.HttpGet(url, header_param);
+                }));
+                thd.IsBackground = true;
+                thd.Start();
+                thd.Join();
             }
             else
             {
                 debug_output("获取全部选课信息...");
                 string course_time = "", course_name = "";
-                Invoke(new NoArgSTA(delegate
+                Invoke(new ThreadStart(delegate
                 {
                     course_time = courseTime.Text;
                     course_name = courseName.Text;
                 }));
-                var sb = new StringBuilder();
-                sb.Append("__EVENTTARGET=&__EVENTARGUMENT=&__VIEWSTATE=");
-                sb.Append(System.Uri.EscapeDataString(__VIEWSTATE));
-                sb.Append("&ddl_kcxz=&ddl_ywyl=");
-                //sb.Append(get_escape_char_str("无"));
-                sb.Append("&ddl_kcgs=&ddl_xqbs=2&ddl_sksj=");
-                //sb.Append(get_escape_char_str(course_time));
-                sb.Append("&TextBox1=");
-                //sb.Append(get_escape_char_str(course_name));
-                sb.Append("&dpkcmcGrid%3AtxtChoosePage=1&dpkcmcGrid%3AtxtPageSize=");
-                sb.Append(System.Uri.EscapeDataString("200"));
-                var post_data = Encoding.Default.GetBytes(sb.ToString());
-                response_stream = util.http_post(ref url, post_data, "application/x-www-form-urlencoded", get_origin_url(), url);
 
+                var post_param = new Parameters();
+                post_param.Add("__EVENTTARGET", "");
+                post_param.Add("__EVENTARGUMENT", "");
+                post_param.Add("__VIEWSTATE", __VIEWSTATE);
+                post_param.Add("ddl_kcxz", "");
+                post_param.Add("ddl_ywyl", "");
+                post_param.Add("ddl_kcgs", "");
+                post_param.Add("ddl_xqbs", 2);
+                post_param.Add("ddl_sksj", "");
+                post_param.Add("TextBox1", "");
+                post_param.Add("dpkcmcGrid:txtChoosePage", 1);
+                post_param.Add("dpkcmcGrid:txtPageSize", 200);
+                var post_data = Encoding.Default.GetBytes(post_param.BuildQueryString());
+
+                //ns.HttpPost(url, post_data, NetStream.DEFAULT_CONTENT_TYPE_PARAM, header_param);
+                var thd = new Thread(new ThreadStart(delegate
+                {
+                    ns.HttpPost(url, post_data, NetStream.DEFAULT_CONTENT_TYPE_PARAM, header_param);
+                }));
+                thd.IsBackground = true;
+                thd.Start();
+                thd.Join();
             }
-            var response_sr = new StreamReader(response_stream, Encoding.Default);
-            var response_str = response_sr.ReadToEnd();
+            var response_str = ns.ReadResponseString(Encoding.Default);
+            ns.Close();
 
-            response_sr.Close();
 
             //replacing crlf
             response_str = response_str.Replace("\r", "").Replace("\n", "");
@@ -334,7 +393,7 @@ namespace FuckJW2005
             var time_spec_total = Regex.Match(response_str, time_ptr);
             if (time_spec_total.Success)
             {
-                Invoke(new NoArgSTA(delegate
+                Invoke(new ThreadStart(delegate
                 {
                     courseTime.Items.Clear();
                     var match_string = time_spec_total.Result("${data}");
@@ -400,7 +459,7 @@ namespace FuckJW2005
             else
             {
                 //updating courses
-                Invoke(new NoArgSTA(delegate
+                Invoke(new ThreadStart(delegate
                 {
                     courseName.Items.Clear();
                     foreach (var item in course_list)
@@ -418,13 +477,15 @@ namespace FuckJW2005
         private bool threadUsing;
         private bool check_course_selected(string html_in)
         {
-            var match = Regex.Match(html_in, @"alert\('(.+)'\);");
+            var match = Regex.Match(html_in, @"alert\('(.+?)'\);");
             var suc = !match.Success;
             if (suc)
             {
                 //parsing course property
                 var ptr_course_table = "<fieldset><legend>已选课程</legend>(?<data>.*?)</fieldset>";
-                var course_table_str = Regex.Match(html_in, ptr_course_table).Result("${data}");
+                match = Regex.Match(html_in, ptr_course_table);
+                if (!match.Success) return true; //success, but no resson returned
+                var course_table_str = match.Result("${data}");
                 match = Regex.Match(course_table_str, "<tr>(?<data>.*?)</tr>");
                 while (match.Success)
                 {
@@ -446,7 +507,7 @@ namespace FuckJW2005
                     match = match.NextMatch();
 
                     string course_name = "", teacher_name = "";
-                    Invoke(new NoArgSTA(delegate { course_name = courseName.Text; teacher_name = teacher.Text; }));
+                    Invoke(new ThreadStart(delegate { course_name = courseName.Text; teacher_name = teacher.Text; }));
                     if (crs.Name == course_name)
                     {
                         debug_output("选课成功");
@@ -466,11 +527,9 @@ namespace FuckJW2005
         {
             var url = get_session_url() + "/xf_xsqxxxk.aspx?xh=" + username.Text + "&gnmkdm=N121103";
 
-            Stream response_stream = null;
-
             debug_output("发送选课请求...");
             string course_time = "", course_name = "";
-            Invoke(new NoArgSTA(delegate
+            Invoke(new ThreadStart(delegate
             {
                 course_time = courseTime.Text;
                 course_name = courseName.Text;
@@ -499,11 +558,19 @@ namespace FuckJW2005
             sb.Append("=on&Button1=++" + get_escape_char_str("提交") + "++");
 
             var post_data = Encoding.Default.GetBytes(sb.ToString());
-            response_stream = util.http_post(ref url, post_data, "application/x-www-form-urlencoded", get_origin_url(), url);
-            var response_sr = new StreamReader(response_stream, Encoding.Default);
-            var response_str = response_sr.ReadToEnd();
+            //response_stream = util.http_post(ref url, post_data, "application/x-www-form-urlencoded", get_origin_url(), url);
+            //var response_sr = new StreamReader(response_stream, Encoding.Default);
+            //var response_str = response_sr.ReadToEnd();
 
-            response_sr.Close();
+            //response_sr.Close();
+            var ns = new NetStream();
+            var header = new Parameters();
+            header.Add("Origin", get_origin_url());
+            header.Add("Referer", url);
+            ns.HttpPost(url, post_data, NetStream.DEFAULT_CONTENT_TYPE_PARAM, header);
+
+            var response_str = ns.ReadResponseString(Encoding.Default);
+            ns.Close();
 
             return check_course_selected(response_str.Replace("\r", "").Replace("\n", ""));
         }
@@ -513,7 +580,7 @@ namespace FuckJW2005
             {
                 //init
                 string course_name = "", teacher_name = "";
-                Invoke(new NoArgSTA(delegate
+                Invoke(new ThreadStart(delegate
                 {
                     courseName.Enabled = false;
                     teacher.Enabled = false;
@@ -561,7 +628,7 @@ namespace FuckJW2005
             finally
             {
                 //ended
-                Invoke(new NoArgSTA(delegate
+                Invoke(new ThreadStart(delegate
                 {
                     courseName.Enabled = true;
                     teacher.Enabled = true;
@@ -600,8 +667,9 @@ namespace FuckJW2005
                     var url = "http://jw2005.scuteo.com/";
                     try
                     {
-                        var stream = util.http_get(ref url, enable_event_callback: false, retry_delay: 0);
-                        stream.Close();
+                        var ns = new NetStream();
+                        ns.HttpGet(url);
+                        ns.Close();
                     }
                     catch (ThreadAbortException) { throw; }
                     catch (Exception)

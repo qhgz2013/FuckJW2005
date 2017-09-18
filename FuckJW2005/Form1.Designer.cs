@@ -52,9 +52,9 @@
             this.teacher = new System.Windows.Forms.TextBox();
             this.label9 = new System.Windows.Forms.Label();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.attackJW = new System.Windows.Forms.Button();
-            this.label10 = new System.Windows.Forms.Label();
             this.AtkThdCount = new System.Windows.Forms.NumericUpDown();
+            this.label10 = new System.Windows.Forms.Label();
+            this.attackJW = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.captchaImg)).BeginInit();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.AtkThdCount)).BeginInit();
@@ -281,25 +281,6 @@
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "危险区域";
             // 
-            // attackJW
-            // 
-            this.attackJW.Location = new System.Drawing.Point(10, 21);
-            this.attackJW.Name = "attackJW";
-            this.attackJW.Size = new System.Drawing.Size(96, 43);
-            this.attackJW.TabIndex = 0;
-            this.attackJW.Text = "攻击教务系统\r\n(后果自负)";
-            this.attackJW.UseVisualStyleBackColor = true;
-            this.attackJW.Click += new System.EventHandler(this.attackJW_Click);
-            // 
-            // label10
-            // 
-            this.label10.AutoSize = true;
-            this.label10.Location = new System.Drawing.Point(13, 68);
-            this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(41, 12);
-            this.label10.TabIndex = 1;
-            this.label10.Text = "线程数";
-            // 
             // AtkThdCount
             // 
             this.AtkThdCount.Location = new System.Drawing.Point(15, 87);
@@ -312,11 +293,30 @@
             0,
             0});
             // 
+            // label10
+            // 
+            this.label10.AutoSize = true;
+            this.label10.Location = new System.Drawing.Point(13, 68);
+            this.label10.Name = "label10";
+            this.label10.Size = new System.Drawing.Size(41, 12);
+            this.label10.TabIndex = 1;
+            this.label10.Text = "线程数";
+            // 
+            // attackJW
+            // 
+            this.attackJW.Location = new System.Drawing.Point(10, 21);
+            this.attackJW.Name = "attackJW";
+            this.attackJW.Size = new System.Drawing.Size(96, 43);
+            this.attackJW.TabIndex = 0;
+            this.attackJW.Text = "攻击教务系统\r\n(后果自负)";
+            this.attackJW.UseVisualStyleBackColor = true;
+            this.attackJW.Click += new System.EventHandler(this.attackJW_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(620, 486);
+            this.ClientSize = new System.Drawing.Size(619, 478);
             this.Controls.Add(this.groupBox1);
             this.Controls.Add(this.goFuck);
             this.Controls.Add(this.courseTime);
