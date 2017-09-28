@@ -32,15 +32,19 @@ namespace FuckJW2005
         private void url_locate_callback(NetStream sender, object e)
         {
             //失败重试
-            if (sender.HTTP_Response == null)
+            if (sender.HTTP_Response == null || (int)sender.HTTP_Response.StatusCode > 400)
             {
-                debug_output("获取跳转信息出错，3s后重试...");
+                if (sender.HTTP_Response == null)
+                    debug_output("获取跳转信息出错，3s后重试...");
+                else
+                    debug_output("获取跳转信息出错:服务器返回状态码 " + (int)sender.HTTP_Response.StatusCode + "(" + sender.HTTP_Response.StatusCode.ToString() + ")，3s后重试...");
                 Thread.Sleep(3000);
                 var url = sender.HTTP_Request.RequestUri.ToString();
                 sender.Close();
 
                 var ns = new NetStream();
                 ns.HttpGetAsync(main_page_url, url_locate_callback, null);
+                return;
             }
 
             //将主页url更改成30X跳转后响应的url
@@ -486,33 +490,27 @@ namespace FuckJW2005
                 match = Regex.Match(html_in, ptr_course_table);
                 if (!match.Success) return true; //success, but no resson returned
                 var course_table_str = match.Result("${data}");
-                match = Regex.Match(course_table_str, "<tr>(?<data>.*?)</tr>");
+                match = Regex.Match(course_table_str, "<tr(\\sclass=\"alt\")?>(?<data>.*?)</tr>");
+
+                string course_name = "", teacher_name = "";
+                Invoke(new ThreadStart(delegate { course_name = courseName.Text; teacher_name = teacher.Text; }));
                 while (match.Success)
                 {
                     var crs = new courses();
                     var sub_info = Regex.Match(match.Result("${data}"), "<td.*?>(?<data>.*?)</td>");
-                    //sect 0
+                    //sect 0 course name
+                    crs.Name = sub_info.Result("${data}");
                     sub_info = sub_info.NextMatch();
-                    //sect 1 course name
-                    var sub_info2 = Regex.Match(sub_info.Result("${data}"), "<a.*?>(?<name>.+?)</a>");
-                    crs.Name = sub_info2.Result("${name}");
+                    //sect 1 teacher
+                    crs.Teacher = sub_info.Result("${data}");
                     sub_info = sub_info.NextMatch();
-                    //sect 2 code
-                    crs.Code = int.Parse(sub_info.Result("${data}"));
-                    sub_info = sub_info.NextMatch();
-                    //sect 3 teacher
-                    sub_info2 = Regex.Match(sub_info.Result("${data}"), "<a.*?>(?<name>.+?)</a>");
-                    crs.Teacher = sub_info2.Result("${name}");
-                    sub_info = sub_info.NextMatch();
-                    match = match.NextMatch();
 
-                    string course_name = "", teacher_name = "";
-                    Invoke(new ThreadStart(delegate { course_name = courseName.Text; teacher_name = teacher.Text; }));
                     if (crs.Name == course_name)
                     {
                         debug_output("选课成功");
                         return true;
                     }
+                    match = match.NextMatch();
                 }
                 debug_output("选课失败");
                 return false;
