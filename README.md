@@ -12,12 +12,14 @@
 ### 验证码识别说明
 运行环境：
 - `Python` 3.6
+
 依赖包：
 - `numpy`
 - `requests`
 - `skimage`
 - `tensorflow`
 - `keras`
+
 识别网络：简单的CNN网络
 
 识别成功率：~99%
