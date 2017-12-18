@@ -86,6 +86,12 @@
     <Content Include="fuck jw2005.txt" />
     <Content Include="TextFile1.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ocr_project\ocr_project.csproj">
+      <Project>{bbca76b5-ca2e-4084-9f2c-eeb9128b613a}</Project>
+      <Name>ocr_project</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

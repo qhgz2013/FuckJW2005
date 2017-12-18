@@ -51,13 +51,8 @@
             this.label8 = new System.Windows.Forms.Label();
             this.teacher = new System.Windows.Forms.TextBox();
             this.label9 = new System.Windows.Forms.Label();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
-            this.AtkThdCount = new System.Windows.Forms.NumericUpDown();
-            this.label10 = new System.Windows.Forms.Label();
-            this.attackJW = new System.Windows.Forms.Button();
+            this.setPython = new System.Windows.Forms.LinkLabel();
             ((System.ComponentModel.ISupportInitialize)(this.captchaImg)).BeginInit();
-            this.groupBox1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.AtkThdCount)).BeginInit();
             this.SuspendLayout();
             // 
             // label1
@@ -65,9 +60,10 @@
             this.label1.AutoSize = true;
             this.label1.Location = new System.Drawing.Point(10, 10);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(173, 24);
+            this.label1.Size = new System.Drawing.Size(527, 24);
             this.label1.TabIndex = 0;
-            this.label1.Text = "说明：本软件仅供内部测试使用\r\n验证码识别免谈- -";
+            this.label1.Text = "说明：本软件仅供内部测试使用，验证码识别部分已经由CNN完成，相关依赖项见github的说明文档\r\n注：打开完python后可能会有几十秒到两分钟的卡顿加载，请耐" +
+    "心等待";
             // 
             // label2
             // 
@@ -269,55 +265,24 @@
             this.label9.TabIndex = 0;
             this.label9.Text = "* 为必要项，其余为可选项，注意每个内容都要与教务系统的名称相对应";
             // 
-            // groupBox1
+            // setPython
             // 
-            this.groupBox1.Controls.Add(this.AtkThdCount);
-            this.groupBox1.Controls.Add(this.label10);
-            this.groupBox1.Controls.Add(this.attackJW);
-            this.groupBox1.Location = new System.Drawing.Point(482, 12);
-            this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(118, 114);
-            this.groupBox1.TabIndex = 12;
-            this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "危险区域";
-            // 
-            // AtkThdCount
-            // 
-            this.AtkThdCount.Location = new System.Drawing.Point(15, 87);
-            this.AtkThdCount.Name = "AtkThdCount";
-            this.AtkThdCount.Size = new System.Drawing.Size(78, 21);
-            this.AtkThdCount.TabIndex = 2;
-            this.AtkThdCount.Value = new decimal(new int[] {
-            32,
-            0,
-            0,
-            0});
-            // 
-            // label10
-            // 
-            this.label10.AutoSize = true;
-            this.label10.Location = new System.Drawing.Point(13, 68);
-            this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(41, 12);
-            this.label10.TabIndex = 1;
-            this.label10.Text = "线程数";
-            // 
-            // attackJW
-            // 
-            this.attackJW.Location = new System.Drawing.Point(10, 21);
-            this.attackJW.Name = "attackJW";
-            this.attackJW.Size = new System.Drawing.Size(96, 43);
-            this.attackJW.TabIndex = 0;
-            this.attackJW.Text = "攻击教务系统\r\n(后果自负)";
-            this.attackJW.UseVisualStyleBackColor = true;
-            this.attackJW.Click += new System.EventHandler(this.attackJW_Click);
+            this.setPython.AutoSize = true;
+            this.setPython.Location = new System.Drawing.Point(432, 34);
+            this.setPython.Margin = new System.Windows.Forms.Padding(1, 0, 1, 0);
+            this.setPython.Name = "setPython";
+            this.setPython.Size = new System.Drawing.Size(89, 12);
+            this.setPython.TabIndex = 12;
+            this.setPython.TabStop = true;
+            this.setPython.Text = "设置python环境";
+            this.setPython.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.setPython_LinkClicked);
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(619, 478);
-            this.Controls.Add(this.groupBox1);
+            this.ClientSize = new System.Drawing.Size(609, 483);
+            this.Controls.Add(this.setPython);
             this.Controls.Add(this.goFuck);
             this.Controls.Add(this.courseTime);
             this.Controls.Add(this.courseName);
@@ -341,11 +306,9 @@
             this.Controls.Add(this.label1);
             this.Name = "Form1";
             this.Text = "Fuck SCUT Jw2005";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
             this.Load += new System.EventHandler(this.Form1_Load);
             ((System.ComponentModel.ISupportInitialize)(this.captchaImg)).EndInit();
-            this.groupBox1.ResumeLayout(false);
-            this.groupBox1.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.AtkThdCount)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -376,10 +339,7 @@
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.TextBox teacher;
         private System.Windows.Forms.Label label9;
-        private System.Windows.Forms.GroupBox groupBox1;
-        private System.Windows.Forms.Button attackJW;
-        private System.Windows.Forms.NumericUpDown AtkThdCount;
-        private System.Windows.Forms.Label label10;
+        private System.Windows.Forms.LinkLabel setPython;
     }
 }
 

