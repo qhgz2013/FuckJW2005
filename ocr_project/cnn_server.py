@@ -3,11 +3,6 @@ import tensorflow as tf
 import keras
 from keras import backend as K
 from skimage import io
-import os
-import requests
-import base64
-import re
-import sys
 import socket
 
 def vec_to_str(vec):
@@ -18,9 +13,8 @@ def vec_to_str(vec):
         ret[index] = list_char[vec[i] % 36]
     return ret[0] + ret[1] + ret[2] + ret[3]
 
-nn_model = keras.models.load_model('nn_model.h5')
-
 if __name__ == '__main__':
+    nn_model = keras.models.load_model('nn_model.h5')
     print("CNN Captcha Server v1.0")
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(("localhost", 10086))

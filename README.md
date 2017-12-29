@@ -18,12 +18,11 @@
 
 依赖包(版本什么的下最新的就好了)：
 - `numpy`
-- `requests`
 - `skimage`
 - `tensorflow`
 - `keras`
 - `h5py`
-- `pillow` (PIL)
+
 #### 预训练CNN接口说明
 简单的服务器端直接可以运行`python cnn_server.py`，然后写个socket连接到`localhost:10086`，格式如下：
 
