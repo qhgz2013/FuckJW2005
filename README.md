@@ -34,6 +34,7 @@
 import numpy as np
 import tensorflow as tf
 from skimage import io
+import keras
 # 将one hot编码的输出转换为对应的字符串
 def vec_to_str(vec):
     # 默认将预测失败的字符设置为"-"
