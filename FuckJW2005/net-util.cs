@@ -11,7 +11,7 @@ using System.IO;
 using System.Collections;
 using System.Threading;
 
-namespace FuckJW2005
+namespace GlobalUtil
 {
     namespace NetUtils
     {
@@ -22,6 +22,7 @@ namespace FuckJW2005
             public const string DEFAULT_GET_METHOD = "GET";
             public const string DEFAULT_POST_METHOD = "POST";
             public const string DEFAULT_HEAD_METHOD = "HEAD";
+            public const string DEFAULT_OPTION_METHOD = "OPTION";
 
             //HTTP 1.1 请求头的内容
             public const string STR_SETCOOKIE = "Set-Cookie";
@@ -58,6 +59,8 @@ namespace FuckJW2005
             public const int DEFAULT_READ_WRITE_TIMEOUT = 30000;
             //默认的代理url
             public const string DEFAULT_PROXY_URL = "";
+            //默认是否忽略系统代理（在默认代理为空的时候起效）
+            public const bool DEFAULT_IGNORE_SYSTEM_PROXY = false;
             //默认的user agent（截取自chrome）
             public const string DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36";
             //默认发送的数据类型（MIME type）
@@ -187,10 +190,9 @@ namespace FuckJW2005
                     if (!string.IsNullOrEmpty(item.Key)) sb.Append('=');
                     if (enableUrlEncode)
                     {
-                        for (int i = 0; i < item.Value.Length; i += 4096)
-                        {
-                            sb.Append(Uri.EscapeDataString(item.Value.Substring(i, Math.Min(4096, item.Value.Length - i))));
-                        }
+                        int max_i = (int)Math.Ceiling(item.Value.Length / 100.0);
+                        for (int i = 0; i < max_i; i++)
+                            sb.Append(Uri.EscapeDataString(item.Value.Substring(i * 100, Math.Min(100, item.Value.Length - 100 * i))));
                     }
                     else sb.Append(item.Value);
                     sb.Append('&');
@@ -408,35 +410,49 @@ namespace FuckJW2005
                 ServicePointManager.MaxServicePointIdleTime = 2000;
                 ServicePointManager.SetTcpKeepAlive(false, 0, 0);
             }
+            //是否开启调试输出
             private static bool _enableTracing = true;
+            //HTTP请求和响应
             private HttpWebRequest _http_request;
             private HttpWebResponse _http_response;
+            //全局锁
             private ReaderWriterLock _lock;
+            //测试用的计算HTTP头部和本体字节长度
             private long _request_header_length;
             private long _request_protocol_length;
             private long _request_body_length;
             private long _response_header_length;
             private long _response_protocol_length;
             private long _response_body_length;
+            //当前的失败统计次数
+            private int _fail_times;
+            //异步重试保存的变量
+            private Parameters _header_param;
+            private Parameters _url_param;
+            private long _range;
+            private object _state;
+            private string _url;
+            private HttpFinishedResponseCallback _callback;
+            private string _post_content_type;
+            private long _post_length;
 
-            private Thread _sync_thread;
             #region properties
             /// <summary>
             /// HTTP请求
             /// </summary>
-            public HttpWebRequest HTTP_Request { get { return _http_request; } set { _http_request = value; } }
+            public HttpWebRequest HTTP_Request { get { return _http_request; } private set { _http_request = value; } }
             /// <summary>
             /// HTTP响应
             /// </summary>
-            public HttpWebResponse HTTP_Response { get { return _http_response; } set { _http_response = value; } }
+            public HttpWebResponse HTTP_Response { get { return _http_response; } private set { _http_response = value; } }
             /// <summary>
             /// 请求的数据流（仅限POST）
             /// </summary>
-            public Stream RequestStream { get; set; }
+            public Stream RequestStream { get; private set; }
             /// <summary>
             /// 响应的数据流
             /// </summary>
-            public Stream ResponseStream { get; set; }
+            public Stream ResponseStream { get; private set; }
             /// <summary>
             /// 是否使用cookie
             /// </summary>
@@ -445,6 +461,10 @@ namespace FuckJW2005
             /// 网页代理
             /// </summary>
             public WebProxy Proxy { get; set; }
+            /// <summary>
+            /// 网页代理URL
+            /// </summary>
+            public string ProxyUrl { get { return Proxy.Address.ToString(); } set { Proxy = new WebProxy(value); } }
             /// <summary>
             /// 连接超时（ms）
             /// </summary>
@@ -470,7 +490,7 @@ namespace FuckJW2005
             /// </summary>
             public string ContentType { get; set; }
             /// <summary>
-            /// 错误重试次数
+            /// 错误重试次数（仅限GET）
             /// </summary>
             public int RetryTimes { get; set; }
             /// <summary>
@@ -485,6 +505,10 @@ namespace FuckJW2005
             /// 使用哪一个cookie
             /// </summary>
             public string CookieKey { get; set; }
+            /// <summary>
+            /// 当代理url为空时是否跳过系统IE代理
+            /// </summary>
+            public bool IgnoreSystemProxy { get; set; }
             public long RequestProtocolLength { get { return _request_protocol_length; } }
             public long RequestHeaderLength { get { return _request_header_length; } }
             public long RequestBodyLength { get { return _request_body_length; } }
@@ -502,10 +526,10 @@ namespace FuckJW2005
             /// <returns></returns>
             public static CookieCollection ParseCookie(string header, string defaultDomain)
             {
-                if (_enableTracing)
-                {
-                    Tracer.GlobalTracer.TraceInfo("ParseCookie called: string header=" + header + ", string defaultDomain=" + defaultDomain);
-                }
+                //if (_enableTracing)
+                //{
+                //    Tracer.GlobalTracer.TraceInfo("ParseCookie called: string header=" + header + ", string defaultDomain=" + defaultDomain);
+                //}
                 if (string.IsNullOrEmpty(defaultDomain)) throw new ArgumentNullException(defaultDomain);
 
                 var ret = new CookieCollection();
@@ -551,7 +575,8 @@ namespace FuckJW2005
                                 c.Expires = DateTime.Now.AddSeconds(int.Parse(arg["maxage"]));
                             else if (arg.ContainsKey("expires"))
                                 c.Expires = _parseCookieExpireTime(arg["expires"]);
-                            else skipflg = true;
+                            else
+                                c.Expires = DateTime.MinValue; //session cookie
 
                             if (!skipflg) ret.Add(c);
                         }
@@ -717,7 +742,7 @@ namespace FuckJW2005
             //异步请求的回调函数，代替IAsyncResult
             public delegate void HttpFinishedResponseCallback(NetStream ns, object state);
             //传递参数的临时结构
-            private struct _tmp_struct { public HttpFinishedResponseCallback cb; public object state; public _tmp_struct(HttpFinishedResponseCallback c, object s) { cb = c; state = s; } }
+            private struct _tmp_struct { public HttpFinishedResponseCallback cb; public object state; public Thread callthd; public bool get; public _tmp_struct(HttpFinishedResponseCallback c, object s, Thread t, bool g) { cb = c; state = s; callthd = t; get = g; } }
             /// <summary>
             /// 异步发送HTTP get请求
             /// </summary>
@@ -730,7 +755,23 @@ namespace FuckJW2005
             /// <returns></returns>
             public IAsyncResult HttpGetAsync(string url, HttpFinishedResponseCallback callback, object state = null, Parameters headerParam = null, Parameters urlParam = null, long range = -1)
             {
-                int cur_times = 0;
+                try
+                {
+                    _lock.AcquireWriterLock(Timeout.Infinite);
+                    _fail_times = 0;
+                    return _httpGetAsync(url, callback, state, headerParam, urlParam, range);
+                }
+                catch (Exception ex)
+                {
+                    throw ex;
+                }
+                finally
+                {
+                    _lock.ReleaseWriterLock();
+                }
+            }
+            private IAsyncResult _httpGetAsync(string url, HttpFinishedResponseCallback callback, object state, Parameters headerParam, Parameters urlParam, long range)
+            {
                 try { if (HTTP_Response != null) HTTP_Response.Close(); } finally { HTTP_Response = null; }
                 try { if (RequestStream != null) { RequestStream.Close(); RequestStream.Dispose(); } } finally { RequestStream = null; }
                 try { if (ResponseStream != null) { ResponseStream.Close(); ResponseStream.Dispose(); } } finally { ResponseStream = null; }
@@ -741,12 +782,13 @@ namespace FuckJW2005
                 {
                     try
                     {
-                        _lock.AcquireWriterLock(Timeout.Infinite);
                         var post_url = url;
                         if (urlParam != null) post_url += "?" + urlParam.BuildQueryString();
 
+                        if (_enableTracing)
+                            Tracer.GlobalTracer.TraceInfo("GET " + post_url);
                         HTTP_Request = (HttpWebRequest)WebRequest.Create(post_url);
-                        HTTP_Request.KeepAlive = true;
+                        //HTTP_Request.KeepAlive = true;
                         HTTP_Request.ConnectionGroupName = "defaultConnectionGroup";
                         _add_param_to_request_header(headerParam, ref _http_request);
 
@@ -756,7 +798,9 @@ namespace FuckJW2005
                         if (!keyList.Contains(STR_ACCEPT_LANGUAGE)) HTTP_Request.Headers.Add(STR_ACCEPT_LANGUAGE, AcceptLanguage);
                         if (!keyList.Contains(STR_USER_AGENT)) HTTP_Request.UserAgent = UserAgent;
 
-                        HTTP_Request.Proxy = Proxy;
+                        if (Proxy != null) HTTP_Request.Proxy = Proxy;
+                        else if (IgnoreSystemProxy) HTTP_Request.Proxy = null;
+
                         if (UseCookie && !keyList.Contains(STR_COOKIE))
                         {
                             _slock.AcquireWriterLock(Timeout.Infinite);
@@ -800,19 +844,23 @@ namespace FuckJW2005
                         _request_header_length += STR_HOST.Length + 2 + HTTP_Request.Host.Length;
                         _request_header_length += STR_CONNECTION.Length + 2 + (HTTP_Request.Connection == null ? STR_CONNECTION_KEEP_ALIVE.Length : HTTP_Request.Connection.Length);
 
-                        return HTTP_Request.BeginGetResponse(_httpAsyncResponse, new _tmp_struct(callback, state));
+                        //storing variables to class members
+                        _url = url;
+                        _header_param = headerParam;
+                        _range = range;
+                        _state = state;
+                        _url_param = urlParam;
+                        _callback = callback;
+
+                        return HTTP_Request.BeginGetResponse(_httpAsyncResponse, new _tmp_struct(callback, state, Thread.CurrentThread, true));
                     }
                     catch (ThreadAbortException) { throw; }
                     catch (Exception ex)
                     {
                         if (_enableTracing) Tracer.GlobalTracer.TraceError(ex.ToString());
-                        cur_times++;
-                        if (RetryTimes >= 0 && cur_times > RetryTimes) throw ex;
+                        _fail_times++;
+                        if (RetryTimes >= 0 && _fail_times > RetryTimes) throw ex;
                         if (RetryDelay > 0) Thread.Sleep(RetryDelay);
-                    }
-                    finally
-                    {
-                        _lock.ReleaseWriterLock();
                     }
                 } while (true);
             }
@@ -822,7 +870,7 @@ namespace FuckJW2005
                 try
                 {
                     _lock.AcquireWriterLock(Timeout.Infinite);
-                    if (HTTP_Request == null) return;
+                    if (HTTP_Request == null) throw new ArgumentNullException("HTTP_Request");
                     HTTP_Response = (HttpWebResponse)HTTP_Request.EndGetResponse(iar);
                     if (HTTP_Response != null)
                     {
@@ -831,7 +879,7 @@ namespace FuckJW2005
                             _slock.AcquireWriterLock(Timeout.Infinite);
                             if (!string.IsNullOrEmpty(CookieKey) && !DefaultCookieContainer.ContainsKey(CookieKey))
                                 DefaultCookieContainer.Add(CookieKey, new CookieContainer());
-                            DefaultCookieContainer[CookieKey].Add(ParseCookie(HTTP_Response.Headers[STR_COOKIE], HTTP_Response.ResponseUri.Host));
+                            DefaultCookieContainer[CookieKey].Add(ParseCookie(HTTP_Response.Headers[STR_SETCOOKIE], HTTP_Response.ResponseUri.Host));
                             _slock.ReleaseWriterLock();
                         }
 
@@ -849,9 +897,7 @@ namespace FuckJW2005
                             _response_header_length += 2; // ":" + empty space
                             _response_header_length += HTTP_Response.Headers[item].Length; //header value
                         }
-                        //special statistics for host and connection
-                        //_response_header_length += STR_HOST.Length + 2 + HTTP_Request.Host.Length;
-                        //_response_header_length += STR_CONNECTION.Length + 2 + HTTP_Request.Connection.Length;
+
                         _response_body_length = HTTP_Response.ContentLength;
 
                         switch (HTTP_Response.ContentEncoding)
@@ -866,14 +912,39 @@ namespace FuckJW2005
                                 ResponseStream = HTTP_Response.GetResponseStream();
                                 break;
                         }
+
+                        try
+                        {
+                            var data = (_tmp_struct)iar.AsyncState;
+                            data.cb.Invoke(this, data.state);
+                        }
+                        catch (Exception ex)
+                        {
+                            if (_enableTracing) Tracer.GlobalTracer.TraceError(ex.ToString());
+                        }
                     }
                 }
                 catch (ThreadAbortException) { throw; }
                 catch (WebException ex)
                 {
-                    if (ex.Status == WebExceptionStatus.RequestCanceled) return;
+                    if (ex.Status == WebExceptionStatus.RequestCanceled) return;// throw ex;
+                    _fail_times++;
 
                     if (_enableTracing) Tracer.GlobalTracer.TraceError(ex.ToString());
+
+                    //retries
+                    if (_fail_times <= RetryTimes && ((_tmp_struct)iar.AsyncState).get)
+                    {
+                        try
+                        {
+                            _httpGetAsync(_url, _callback, _state, _header_param, _url_param, _range);
+                        }
+                        catch (Exception ex2)
+                        {
+                            throw ex2;
+                        }
+                        return; //ignore responsing error data
+                    }
 
                     if (ex.Response != null)
                     {
@@ -883,7 +954,7 @@ namespace FuckJW2005
                             HTTP_Response = (HttpWebResponse)ex.Response;
                             if (!string.IsNullOrEmpty(CookieKey) && !DefaultCookieContainer.ContainsKey(CookieKey))
                                 DefaultCookieContainer.Add(CookieKey, new CookieContainer());
-                            HTTP_Request.CookieContainer = DefaultCookieContainer[CookieKey];
+                            DefaultCookieContainer[CookieKey].Add(ParseCookie(HTTP_Response.Headers[STR_SETCOOKIE], HTTP_Response.ResponseUri.Host));
                             _slock.ReleaseWriterLock();
 
                             switch (HTTP_Response.ContentEncoding)
@@ -899,25 +970,35 @@ namespace FuckJW2005
                                     break;
                             }
                         }
-                        catch (Exception) { }
+                        catch (Exception ex2) { throw ex2; }
                     }
-                }
-                catch (Exception ex)
-                {
-                    if (_enableTracing) Tracer.GlobalTracer.TraceError(ex.ToString());
-                }
-                finally
-                {
-                    _lock.ReleaseWriterLock();
+
                     try
                     {
                         var data = (_tmp_struct)iar.AsyncState;
                         data.cb.Invoke(this, data.state);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex2)
                     {
-                        if (_enableTracing) Tracer.GlobalTracer.TraceError(ex.ToString());
+                        if (_enableTracing) Tracer.GlobalTracer.TraceError(ex2.ToString());
                     }
+                }
+                catch (Exception ex)
+                {
+                    if (_enableTracing) Tracer.GlobalTracer.TraceError(ex.ToString());
+                    try
+                    {
+                        var data = (_tmp_struct)iar.AsyncState;
+                        data.cb.Invoke(this, data.state);
+                    }
+                    catch (Exception ex2)
+                    {
+                        if (_enableTracing) Tracer.GlobalTracer.TraceError(ex2.ToString());
+                    }
+                }
+                finally
+                {
+                    _lock.ReleaseWriterLock();
                 }
             }
 
@@ -935,10 +1016,26 @@ namespace FuckJW2005
             /// <returns></returns>
             public IAsyncResult HttpPostAsync(string url, long postLength, HttpFinishedResponseCallback callback, object state = null, string postContentType = DEFAULT_CONTENT_TYPE_BINARY, Parameters headerParam = null, Parameters urlParam = null, long range = -1)
             {
+                try
+                {
+                    _lock.AcquireWriterLock(Timeout.Infinite);
+                    _fail_times = 0;
+                    return _httpPostAsync(url, postLength, callback, state, postContentType, headerParam, urlParam, range);
+                }
+                catch (Exception ex)
+                {
+                    throw ex;
+                }
+                finally
+                {
+                    _lock.ReleaseWriterLock();
+                }
+            }
+            private IAsyncResult _httpPostAsync(string url, long postLength, HttpFinishedResponseCallback callback, object state, string postContentType, Parameters headerParam, Parameters urlParam, long range)
+            {
                 try { if (HTTP_Response != null) HTTP_Response.Close(); } finally { HTTP_Response = null; }
                 try { if (RequestStream != null) { RequestStream.Close(); RequestStream.Dispose(); } } finally { RequestStream = null; }
                 try { if (ResponseStream != null) { ResponseStream.Close(); ResponseStream.Dispose(); } } finally { ResponseStream = null; }
-                int cur_times = 0;
                 do
                 {
                     try
@@ -946,6 +1043,8 @@ namespace FuckJW2005
                         var post_url = url;
                         if (urlParam != null) post_url += "?" + urlParam.BuildQueryString();
 
+                        if (_enableTracing)
+                            Tracer.GlobalTracer.TraceInfo("POST " + post_url);
                         HTTP_Request = (HttpWebRequest)WebRequest.Create(post_url);
                         HTTP_Request.KeepAlive = true;
                         HTTP_Request.ConnectionGroupName = "defaultConnectionGroup";
@@ -958,6 +1057,8 @@ namespace FuckJW2005
                         if (!keyList.Contains(STR_USER_AGENT)) HTTP_Request.UserAgent = UserAgent;
 
                         if (Proxy != null) HTTP_Request.Proxy = Proxy;
+                        else if (IgnoreSystemProxy) HTTP_Request.Proxy = null;
+
                         if (UseCookie && !keyList.Contains(STR_COOKIE))
                         {
                             _slock.AcquireWriterLock(Timeout.Infinite);
@@ -1007,13 +1108,23 @@ namespace FuckJW2005
                         _request_header_length += STR_HOST.Length + 2 + HTTP_Request.Host.Length;
                         _request_header_length += STR_CONNECTION.Length + 2 + (HTTP_Request.Connection == null ? STR_CONNECTION_KEEP_ALIVE.Length : HTTP_Request.Connection.Length);
 
-                        return HTTP_Request.BeginGetRequestStream(_httpPostAsyncRequest, new _tmp_struct(callback, state));
+                        //storing variables to class members
+                        _url = url;
+                        _header_param = headerParam;
+                        _range = range;
+                        _state = state;
+                        _url_param = urlParam;
+                        _callback = callback;
+                        _post_content_type = postContentType;
+                        _post_length = postLength;
+
+                        return HTTP_Request.BeginGetRequestStream(_httpPostAsyncRequest, new _tmp_struct(callback, state, Thread.CurrentThread, false));
                     }
                     catch (ThreadAbortException) { throw; }
                     catch (WebException ex)
                     {
                         if (_enableTracing) Tracer.GlobalTracer.TraceError(ex.ToString());
-                        cur_times++;
+                        _fail_times++;
 
                         if (ex.Response != null)
                         {
@@ -1033,18 +1144,19 @@ namespace FuckJW2005
                                         break;
                                 }
                             }
-                            catch (Exception)
+                            catch (Exception ex2)
                             {
+                                throw ex2;
                             }
                         }
-                        if (RetryTimes >= 0 && cur_times > RetryTimes) throw ex;
+                        if (RetryTimes >= 0 && _fail_times > RetryTimes) throw ex;
                         if (RetryDelay > 0) Thread.Sleep(RetryDelay);
                     }
                     catch (Exception ex)
                     {
                         if (_enableTracing) Tracer.GlobalTracer.TraceError(ex.ToString());
-                        cur_times++;
-                        if (RetryTimes >= 0 && cur_times > RetryTimes) throw ex;
+                        _fail_times++;
+                        if (RetryTimes >= 0 && _fail_times > RetryTimes) throw ex;
                         if (RetryDelay > 0) Thread.Sleep(RetryDelay);
                     }
                 } while (true);
@@ -1052,6 +1164,15 @@ namespace FuckJW2005
             //post时用于EndGetRequestStream的回调函数，用于更新类
             private void _httpPostAsyncRequest(IAsyncResult iar)
             {
+                //排斥调用方线程的代码，.net不知为什么在GetRequestStream的异步方法会调用本身的线程（非线程池线程）
+                if (((_tmp_struct)iar.AsyncState).callthd == Thread.CurrentThread)
+                {
+                    var thd_start_event = new ManualResetEventSlim();
+                    ThreadPool.QueueUserWorkItem(delegate { thd_start_event.Set(); _httpPostAsyncRequest(iar); });
+                    thd_start_event.Wait();
+                    return;
+                }
+
                 try
                 {
                     _lock.AcquireWriterLock(Timeout.Infinite);
@@ -1062,6 +1183,21 @@ namespace FuckJW2005
                 catch (WebException ex)
                 {
                     if (ex.Status == WebExceptionStatus.RequestCanceled) return; // throw ex;
+                    _fail_times++;
+
+                    //retries
+                    if (_fail_times <= RetryTimes)
+                    {
+                        try
+                        {
+                            _httpPostAsync(_url, _post_length, _callback, _state, _post_content_type, _header_param, _url_param, _range);
+                        }
+                        catch (Exception ex2)
+                        {
+                            throw ex2;
+                        }
+                        return; //ignore responsing error data
+                    }
 
                     if (_enableTracing) Tracer.GlobalTracer.TraceError(ex.ToString());
                     if (ex.Response != null)
@@ -1113,6 +1249,18 @@ namespace FuckJW2005
             /// <returns></returns>
             public IAsyncResult HttpPostResponseAsync(HttpFinishedResponseCallback callback, object state = null)
             {
+                try
+                {
+                    _lock.AcquireWriterLock(Timeout.Infinite);
+                    return _httpPostAsyncResponse(callback, state);
+                }
+                finally
+                {
+                    _lock.ReleaseWriterLock();
+                }
+            }
+            private IAsyncResult _httpPostAsyncResponse(HttpFinishedResponseCallback callback, object state)
+            {
                 if (HTTP_Request == null) return null;
                 try
                 {
@@ -1123,61 +1271,44 @@ namespace FuckJW2005
                         RequestStream = null;
                     }
                 }
-                catch (Exception)
+                catch (Exception) { }
+
+                try
                 {
+                    return HTTP_Request.BeginGetResponse(_httpAsyncResponse, new _tmp_struct(callback, state, Thread.CurrentThread, false));
                 }
-
-                int cur_times = 0;
-                do
+                catch (ThreadAbortException) { throw; }
+                catch (WebException ex)
                 {
-                    //_lock.AcquireWriterLock(Timeout.Infinite);
-                    try
-                    {
-                        return HTTP_Request.BeginGetResponse(_httpAsyncResponse, new _tmp_struct(callback, state));
-                    }
-                    catch (ThreadAbortException) { throw; }
-                    catch (WebException ex)
-                    {
-                        if (_enableTracing) Tracer.GlobalTracer.TraceError(ex.ToString());
-                        cur_times++;
+                    if (_enableTracing) Tracer.GlobalTracer.TraceError(ex.ToString());
 
-                        if (ex.Response != null)
+                    if (ex.Response != null)
+                    {
+                        try
                         {
-                            try
+                            HTTP_Response = (HttpWebResponse)ex.Response;
+                            switch (HTTP_Response.ContentEncoding)
                             {
-                                HTTP_Response = (HttpWebResponse)ex.Response;
-                                switch (HTTP_Response.ContentEncoding)
-                                {
-                                    case STR_ACCEPT_ENCODING_GZIP:
-                                        ResponseStream = new System.IO.Compression.GZipStream(HTTP_Response.GetResponseStream(), System.IO.Compression.CompressionMode.Decompress);
-                                        break;
-                                    case STR_ACCEPT_ENCODING_DEFLATE:
-                                        ResponseStream = new System.IO.Compression.DeflateStream(HTTP_Response.GetResponseStream(), System.IO.Compression.CompressionMode.Decompress);
-                                        break;
-                                    default:
-                                        ResponseStream = HTTP_Response.GetResponseStream();
-                                        break;
-                                }
-                            }
-                            catch (Exception)
-                            {
+                                case STR_ACCEPT_ENCODING_GZIP:
+                                    ResponseStream = new System.IO.Compression.GZipStream(HTTP_Response.GetResponseStream(), System.IO.Compression.CompressionMode.Decompress);
+                                    break;
+                                case STR_ACCEPT_ENCODING_DEFLATE:
+                                    ResponseStream = new System.IO.Compression.DeflateStream(HTTP_Response.GetResponseStream(), System.IO.Compression.CompressionMode.Decompress);
+                                    break;
+                                default:
+                                    ResponseStream = HTTP_Response.GetResponseStream();
+                                    break;
                             }
                         }
-                        if (RetryTimes >= 0 && cur_times > RetryTimes) throw ex;
-                        if (RetryDelay > 0) Thread.Sleep(RetryDelay);
+                        catch (Exception) { }
                     }
-                    catch (Exception ex)
-                    {
-                        if (_enableTracing) Tracer.GlobalTracer.TraceError(ex.ToString());
-                        cur_times++;
-                        if (RetryTimes >= 0 && cur_times > RetryTimes) throw ex;
-                        if (RetryDelay > 0) Thread.Sleep(RetryDelay);
-                    }
-                    finally
-                    {
-                        //_lock.ReleaseWriterLock();
-                    }
-                } while (true);
+                    throw ex;
+                }
+                catch (Exception ex)
+                {
+                    if (_enableTracing) Tracer.GlobalTracer.TraceError(ex.ToString());
+                    throw ex;
+                }
             }
             /// <summary>
             /// 关闭该数据流，释放所有使用的网络和内存资源
@@ -1245,16 +1376,81 @@ namespace FuckJW2005
             /// <returns></returns>
             public string ReadResponseString(Encoding encoding = null)
             {
-                if (encoding == null)
-                    encoding = Encoding.GetEncoding(DEFAULT_ENCODING);
+                try
+                {
+                    _lock.AcquireWriterLock(Timeout.Infinite);
+                    if (encoding == null)
+                        encoding = Encoding.GetEncoding(DEFAULT_ENCODING);
 
-                if (ResponseStream == null || !ResponseStream.CanRead) return string.Empty;
-                var sr = new StreamReader(ResponseStream, encoding);
-                var str = sr.ReadToEnd();
-                sr.Close();
-                sr.Dispose();
-                ResponseStream = null;
-                return str;
+                    if (ResponseStream == null || !ResponseStream.CanRead) return string.Empty;
+                    var sr = new StreamReader(ResponseStream, encoding);
+                    var str = sr.ReadToEnd();
+                    sr.Close();
+                    sr.Dispose();
+                    ResponseStream = null;
+                    return str;
+                }
+                catch (Exception ex)
+                {
+                    throw ex;
+                }
+                finally
+                {
+                    _lock.ReleaseWriterLock();
+                }
+            }
+
+            /// <summary>
+            /// 从ResponseStream中读取所有数据并返回响应的字节数组
+            /// 注：该方法仅用于较小的数据量
+            /// </summary>
+            /// <returns></returns>
+            public byte[] ReadResponseBinary()
+            {
+                try
+                {
+                    _lock.AcquireWriterLock(Timeout.Infinite);
+                    byte[] container = null;
+                    if (HTTP_Response == null) return null;
+                    if (ResponseStream == null) return null;
+                    if (HTTP_Response.ContentLength < 0)
+                    {
+                        var ls_container = new List<byte>(4096);
+                        var buffer = new byte[4096];
+                        var bytes_readed = 0;
+                        do
+                        {
+                            bytes_readed = ResponseStream.Read(buffer, 0, 4096);
+                            var available_bytes = new byte[bytes_readed];
+                            Array.Copy(buffer, 0, available_bytes, 0, bytes_readed);
+                            ls_container.AddRange(available_bytes);
+                        } while (bytes_readed > 0);
+                        container = ls_container.ToArray();
+                        ls_container.Clear();
+                    }
+                    else
+                    {
+                        container = new byte[HTTP_Response.ContentLength];
+                        var index = 0;
+                        var buffer = new byte[4096];
+                        var bytes_readed = 0;
+                        do
+                        {
+                            bytes_readed = ResponseStream.Read(buffer, 0, 4096);
+                            Array.Copy(buffer, 0, container, index, bytes_readed);
+                            index += bytes_readed;
+                        } while (bytes_readed > 0);
+                    }
+                    return container;
+                }
+                catch (Exception ex)
+                {
+                    throw ex;
+                }
+                finally
+                {
+                    _lock.ReleaseWriterLock();
+                }
             }
             public NetStream()
             {
@@ -1273,7 +1469,7 @@ namespace FuckJW2005
                 _lock = new ReaderWriterLock();
             }
 
-            #region Abandoned sync method
+            #region sync method
             /// <summary>
             /// 同步发送HTTP get请求
             /// </summary>
@@ -1283,16 +1479,10 @@ namespace FuckJW2005
             /// <param name="range">文件范围（该功能不一定支持）</param>
             public void HttpGet(string url, Parameters headerParam = null, Parameters urlParam = null, long range = -1)
             {
-                _sync_thread = Thread.CurrentThread;
-                var iar = HttpGetAsync(url, (ns, state) => { _sync_thread.Interrupt(); }, null, headerParam, urlParam, range);
-                try
-                {
-                    iar.AsyncWaitHandle.WaitOne();
-                    Thread.Sleep(Timeout.Infinite);
-                }
-                catch (ThreadInterruptedException) { }
-                catch (ThreadAbortException) { throw; }
-                catch (Exception) { throw; }
+                var set_event = new ManualResetEventSlim();
+                var iar = HttpGetAsync(url, (ns, state) => { set_event.Set(); }, null, headerParam, urlParam, range);
+                iar.AsyncWaitHandle.WaitOne();
+                set_event.Wait();
             }
             /// <summary>
             /// 同步发送HTTP post请求
@@ -1306,16 +1496,10 @@ namespace FuckJW2005
             /// <returns></returns>
             public Stream HttpPost(string url, long length, string contentType = DEFAULT_CONTENT_TYPE_BINARY, Parameters headerParam = null, Parameters urlParam = null, long range = -1)
             {
-                _sync_thread = Thread.CurrentThread;
-                var iar = HttpPostAsync(url, length, (ns, state) => { _sync_thread.Interrupt(); }, null, contentType, headerParam, urlParam, range);
-                try
-                {
-                    iar.AsyncWaitHandle.WaitOne();
-                    Thread.Sleep(Timeout.Infinite);
-                }
-                catch (ThreadInterruptedException) { }
-                catch (ThreadAbortException) { throw; }
-                catch (Exception) { throw; }
+                var set_event = new ManualResetEventSlim();
+                var iar = HttpPostAsync(url, length, (ns, state) => { set_event.Set(); }, null, contentType, headerParam, urlParam, range);
+                iar.AsyncWaitHandle.WaitOne();
+                set_event.Wait();
                 return RequestStream;
             }
             /// <summary>
@@ -1323,16 +1507,10 @@ namespace FuckJW2005
             /// </summary>
             public void HttpPostClose()
             {
-                _sync_thread = Thread.CurrentThread;
-                var iar = HttpPostResponseAsync((ns, state) => { _sync_thread.Interrupt(); }, null);
-                try
-                {
-                    iar.AsyncWaitHandle.WaitOne();
-                    Thread.Sleep(Timeout.Infinite);
-                }
-                catch (ThreadInterruptedException) { }
-                catch (ThreadAbortException) { throw; }
-                catch (Exception) { throw; }
+                var set_event = new ManualResetEventSlim();
+                var iar = HttpPostResponseAsync((ns, state) => { set_event.Set(); }, null);
+                iar.AsyncWaitHandle.WaitOne();
+                set_event.Wait();
             }
             /// <summary>
             /// 同步获取HTTP post响应

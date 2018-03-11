@@ -22,69 +22,78 @@ namespace ocr_project
 
         //python 进程
         private Process _python_process;
-        private Socket _server_socket;
-        private Guid _wrapper_guid;
         public OCR_Wrapper(string python_path)
         {
-            _python_path = python_path;
-            _python_process = new Process();
-            _python_process.StartInfo.Arguments = "cnn_server.py";
-            _python_process.StartInfo.FileName = _python_path;
-            _python_process.StartInfo.UseShellExecute = false;
-            _python_process.StartInfo.CreateNoWindow = true;
-            _python_process.Start();
-
+            //这里修改为只要能连接到端口就不再重新创建进程
             var ipaddr = IPAddress.Parse(_default_server_ip);
-            bool connect_suc = false;
             var ip_endpoint = new IPEndPoint(ipaddr, _default_server_port);
-
-            _server_socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            while (!connect_suc)
+            try
             {
-                try
-                {
-                    _server_socket.Connect(ip_endpoint);
-                    connect_suc = true;
-                }
-                catch
-                {
-                    Thread.Sleep(100);
-                }
+                var server_socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                server_socket.Connect(ip_endpoint);
             }
-
-            _wrapper_guid = Guid.NewGuid();
+            catch (SocketException)
+            {
+                _python_path = python_path;
+                _python_process = new Process();
+                _python_process.StartInfo.Arguments = "cnn_server.py";
+                _python_process.StartInfo.FileName = _python_path;
+                _python_process.Start();
+            }
         }
 
         public string OCR_Image(Image img)
         {
-            var converter = new ImageConverter();
-            var img_data = (byte[])converter.ConvertTo(img, typeof(byte[]));
-            var guid_data = _wrapper_guid.ToByteArray();
-
-            var send_data = new byte[guid_data.Length + img_data.Length];
-            Array.Copy(guid_data, 0, send_data, 0, guid_data.Length);
-            Array.Copy(img_data, 0, send_data, guid_data.Length, img_data.Length);
-
-            _server_socket.Send(send_data);
-
-            do
+            var ipaddr = IPAddress.Parse(_default_server_ip);
+            var ip_endpoint = new IPEndPoint(ipaddr, _default_server_port);
+            var server_socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            server_socket.ReceiveTimeout = 5000;
+            server_socket.SendTimeout = 5000;
+            try
             {
-                var buffer = new byte[4096];
-                var length = _server_socket.Receive(buffer);
-
-                var recv_guid_data = new byte[guid_data.Length];
-                var recv_img_result = new byte[length - guid_data.Length];
-
-                Array.Copy(buffer, 0, recv_guid_data, 0, recv_guid_data.Length);
-                Array.Copy(buffer, recv_guid_data.Length, recv_img_result, 0, recv_img_result.Length);
-
-                var recv_guid = new Guid(recv_guid_data);
-                if (recv_guid == _wrapper_guid)
+                try
                 {
-                    var result = Encoding.UTF8.GetString(recv_img_result);
-                    return result;
+                    server_socket.Connect(ip_endpoint);
                 }
-            } while (true);
+                catch
+                {
+                    server_socket = null;
+                    return string.Empty;
+                }
+
+                var converter = new ImageConverter();
+                var img_data = (byte[])converter.ConvertTo(img, typeof(byte[]));
+
+                var length = img_data.Length;
+                var length_bytes = new byte[4];
+                for (int i = 3; i >= 0; i--)
+                {
+                    length_bytes[i] = (byte)(length & 0xff);
+                    length >>= 8;
+                }
+
+                var send_bytes = new byte[4 + img_data.Length];
+                Array.Copy(length_bytes, 0, send_bytes, 0, 4);
+                Array.Copy(img_data, 0, send_bytes, 4, img_data.Length);
+                server_socket.Send(send_bytes);
+                var buf = new byte[256];
+                length = server_socket.Receive(buf);
+                var result = Encoding.UTF8.GetString(buf, 0, length);
+                server_socket.Send(new byte[] { 0xff });
+                return result;
+            }
+            catch (Exception)
+            {
+                return string.Empty;
+            }
+            finally
+            {
+                if (server_socket != null)
+                {
+                    server_socket.Close();
+                    server_socket.Dispose();
+                }
+            }
         }
         ~OCR_Wrapper()
         {
@@ -92,12 +101,6 @@ namespace ocr_project
         }
         public void Dispose()
         {
-            if (_server_socket != null)
-            {
-                _server_socket.Close();
-                _server_socket.Dispose();
-                _server_socket = null;
-            }
             if (_python_process != null)
             {
                 _python_process.Kill();

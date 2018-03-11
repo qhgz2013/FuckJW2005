@@ -50,7 +50,6 @@
             this.goFuck = new System.Windows.Forms.Button();
             this.label8 = new System.Windows.Forms.Label();
             this.teacher = new System.Windows.Forms.TextBox();
-            this.label9 = new System.Windows.Forms.Label();
             this.setPython = new System.Windows.Forms.LinkLabel();
             ((System.ComponentModel.ISupportInitialize)(this.captchaImg)).BeginInit();
             this.SuspendLayout();
@@ -60,15 +59,15 @@
             this.label1.AutoSize = true;
             this.label1.Location = new System.Drawing.Point(10, 10);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(527, 24);
+            this.label1.Size = new System.Drawing.Size(527, 36);
             this.label1.TabIndex = 0;
             this.label1.Text = "说明：本软件仅供内部测试使用，验证码识别部分已经由CNN完成，相关依赖项见github的说明文档\r\n注：打开完python后可能会有几十秒到两分钟的卡顿加载，请耐" +
-    "心等待";
+    "心等待\r\n出现CNN Captcha Server 1.1后，刷新验证码即可实现自动识别";
             // 
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(10, 50);
+            this.label2.Location = new System.Drawing.Point(11, 61);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(29, 12);
             this.label2.TabIndex = 1;
@@ -76,7 +75,7 @@
             // 
             // username
             // 
-            this.username.Location = new System.Drawing.Point(57, 47);
+            this.username.Location = new System.Drawing.Point(58, 58);
             this.username.Name = "username";
             this.username.Size = new System.Drawing.Size(126, 21);
             this.username.TabIndex = 1;
@@ -85,7 +84,7 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(10, 82);
+            this.label3.Location = new System.Drawing.Point(11, 93);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(29, 12);
             this.label3.TabIndex = 1;
@@ -93,7 +92,7 @@
             // 
             // password
             // 
-            this.password.Location = new System.Drawing.Point(57, 79);
+            this.password.Location = new System.Drawing.Point(58, 90);
             this.password.Name = "password";
             this.password.PasswordChar = '*';
             this.password.Size = new System.Drawing.Size(126, 21);
@@ -103,7 +102,7 @@
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(10, 114);
+            this.label4.Location = new System.Drawing.Point(11, 125);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(41, 12);
             this.label4.TabIndex = 1;
@@ -111,7 +110,7 @@
             // 
             // capcha
             // 
-            this.capcha.Location = new System.Drawing.Point(79, 111);
+            this.capcha.Location = new System.Drawing.Point(80, 122);
             this.capcha.Name = "capcha";
             this.capcha.Size = new System.Drawing.Size(104, 21);
             this.capcha.TabIndex = 3;
@@ -119,7 +118,7 @@
             // 
             // captchaImg
             // 
-            this.captchaImg.Location = new System.Drawing.Point(189, 50);
+            this.captchaImg.Location = new System.Drawing.Point(190, 61);
             this.captchaImg.Name = "captchaImg";
             this.captchaImg.Size = new System.Drawing.Size(116, 53);
             this.captchaImg.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -129,7 +128,7 @@
             // refreshCaptcha
             // 
             this.refreshCaptcha.AutoSize = true;
-            this.refreshCaptcha.Location = new System.Drawing.Point(189, 114);
+            this.refreshCaptcha.Location = new System.Drawing.Point(190, 125);
             this.refreshCaptcha.Name = "refreshCaptcha";
             this.refreshCaptcha.Size = new System.Drawing.Size(65, 12);
             this.refreshCaptcha.TabIndex = 4;
@@ -140,7 +139,7 @@
             // login
             // 
             this.login.Enabled = false;
-            this.login.Location = new System.Drawing.Point(348, 55);
+            this.login.Location = new System.Drawing.Point(349, 66);
             this.login.Name = "login";
             this.login.Size = new System.Drawing.Size(117, 67);
             this.login.TabIndex = 5;
@@ -162,7 +161,7 @@
             // label5
             // 
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(12, 288);
+            this.label5.Location = new System.Drawing.Point(13, 264);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(35, 12);
             this.label5.TabIndex = 1;
@@ -174,9 +173,9 @@
             this.columnHeader1,
             this.columnHeader2});
             this.listOutput.FullRowSelect = true;
-            this.listOutput.Location = new System.Drawing.Point(12, 303);
+            this.listOutput.Location = new System.Drawing.Point(12, 279);
             this.listOutput.Name = "listOutput";
-            this.listOutput.Size = new System.Drawing.Size(588, 146);
+            this.listOutput.Size = new System.Drawing.Size(588, 170);
             this.listOutput.TabIndex = 10;
             this.listOutput.UseCompatibleStateImageBehavior = false;
             this.listOutput.View = System.Windows.Forms.View.Details;
@@ -194,7 +193,7 @@
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(10, 160);
+            this.label6.Location = new System.Drawing.Point(11, 171);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(95, 12);
             this.label6.TabIndex = 1;
@@ -203,7 +202,7 @@
             // courseName
             // 
             this.courseName.FormattingEnabled = true;
-            this.courseName.Location = new System.Drawing.Point(111, 157);
+            this.courseName.Location = new System.Drawing.Point(112, 168);
             this.courseName.Name = "courseName";
             this.courseName.Size = new System.Drawing.Size(154, 20);
             this.courseName.TabIndex = 6;
@@ -214,7 +213,7 @@
             // 
             this.label7.AutoSize = true;
             this.label7.Enabled = false;
-            this.label7.Location = new System.Drawing.Point(10, 220);
+            this.label7.Location = new System.Drawing.Point(11, 231);
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(53, 12);
             this.label7.TabIndex = 1;
@@ -224,14 +223,15 @@
             // 
             this.courseTime.Enabled = false;
             this.courseTime.FormattingEnabled = true;
-            this.courseTime.Location = new System.Drawing.Point(111, 217);
+            this.courseTime.Location = new System.Drawing.Point(112, 228);
             this.courseTime.Name = "courseTime";
             this.courseTime.Size = new System.Drawing.Size(214, 20);
             this.courseTime.TabIndex = 8;
             // 
             // goFuck
             // 
-            this.goFuck.Location = new System.Drawing.Point(348, 157);
+            this.goFuck.Enabled = false;
+            this.goFuck.Location = new System.Drawing.Point(349, 168);
             this.goFuck.Name = "goFuck";
             this.goFuck.Size = new System.Drawing.Size(117, 63);
             this.goFuck.TabIndex = 9;
@@ -242,7 +242,7 @@
             // label8
             // 
             this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(10, 191);
+            this.label8.Location = new System.Drawing.Point(11, 202);
             this.label8.Name = "label8";
             this.label8.Size = new System.Drawing.Size(65, 12);
             this.label8.TabIndex = 1;
@@ -250,20 +250,12 @@
             // 
             // teacher
             // 
-            this.teacher.Location = new System.Drawing.Point(111, 188);
+            this.teacher.Location = new System.Drawing.Point(112, 199);
             this.teacher.Name = "teacher";
+            this.teacher.ReadOnly = true;
             this.teacher.Size = new System.Drawing.Size(154, 21);
             this.teacher.TabIndex = 7;
             this.teacher.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.teacher_KeyPress);
-            // 
-            // label9
-            // 
-            this.label9.AutoSize = true;
-            this.label9.Location = new System.Drawing.Point(10, 250);
-            this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(389, 12);
-            this.label9.TabIndex = 0;
-            this.label9.Text = "* 为必要项，其余为可选项，注意每个内容都要与教务系统的名称相对应";
             // 
             // setPython
             // 
@@ -302,7 +294,6 @@
             this.Controls.Add(this.label8);
             this.Controls.Add(this.label6);
             this.Controls.Add(this.label2);
-            this.Controls.Add(this.label9);
             this.Controls.Add(this.label1);
             this.Name = "Form1";
             this.Text = "Fuck SCUT Jw2005";
@@ -338,7 +329,6 @@
         private System.Windows.Forms.Button goFuck;
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.TextBox teacher;
-        private System.Windows.Forms.Label label9;
         private System.Windows.Forms.LinkLabel setPython;
     }
 }
