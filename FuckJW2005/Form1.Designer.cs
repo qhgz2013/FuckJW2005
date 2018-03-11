@@ -46,11 +46,11 @@
             this.label6 = new System.Windows.Forms.Label();
             this.courseName = new System.Windows.Forms.ComboBox();
             this.label7 = new System.Windows.Forms.Label();
-            this.courseTime = new System.Windows.Forms.ComboBox();
             this.goFuck = new System.Windows.Forms.Button();
             this.label8 = new System.Windows.Forms.Label();
             this.teacher = new System.Windows.Forms.TextBox();
             this.setPython = new System.Windows.Forms.LinkLabel();
+            this.courseTime = new System.Windows.Forms.TextBox();
             ((System.ComponentModel.ISupportInitialize)(this.captchaImg)).BeginInit();
             this.SuspendLayout();
             // 
@@ -212,21 +212,11 @@
             // label7
             // 
             this.label7.AutoSize = true;
-            this.label7.Enabled = false;
             this.label7.Location = new System.Drawing.Point(11, 231);
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(53, 12);
             this.label7.TabIndex = 1;
             this.label7.Text = "上课时间";
-            // 
-            // courseTime
-            // 
-            this.courseTime.Enabled = false;
-            this.courseTime.FormattingEnabled = true;
-            this.courseTime.Location = new System.Drawing.Point(112, 228);
-            this.courseTime.Name = "courseTime";
-            this.courseTime.Size = new System.Drawing.Size(214, 20);
-            this.courseTime.TabIndex = 8;
             // 
             // goFuck
             // 
@@ -244,9 +234,9 @@
             this.label8.AutoSize = true;
             this.label8.Location = new System.Drawing.Point(11, 202);
             this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(65, 12);
+            this.label8.Size = new System.Drawing.Size(53, 12);
             this.label8.TabIndex = 1;
-            this.label8.Text = "教师姓名 *";
+            this.label8.Text = "教师姓名";
             // 
             // teacher
             // 
@@ -269,6 +259,15 @@
             this.setPython.Text = "设置python环境";
             this.setPython.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.setPython_LinkClicked);
             // 
+            // courseTime
+            // 
+            this.courseTime.Location = new System.Drawing.Point(112, 228);
+            this.courseTime.Name = "courseTime";
+            this.courseTime.ReadOnly = true;
+            this.courseTime.Size = new System.Drawing.Size(219, 21);
+            this.courseTime.TabIndex = 7;
+            this.courseTime.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.teacher_KeyPress);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
@@ -276,7 +275,6 @@
             this.ClientSize = new System.Drawing.Size(609, 483);
             this.Controls.Add(this.setPython);
             this.Controls.Add(this.goFuck);
-            this.Controls.Add(this.courseTime);
             this.Controls.Add(this.courseName);
             this.Controls.Add(this.listOutput);
             this.Controls.Add(this.linkLabel1);
@@ -284,6 +282,7 @@
             this.Controls.Add(this.refreshCaptcha);
             this.Controls.Add(this.captchaImg);
             this.Controls.Add(this.capcha);
+            this.Controls.Add(this.courseTime);
             this.Controls.Add(this.teacher);
             this.Controls.Add(this.password);
             this.Controls.Add(this.username);
@@ -325,11 +324,11 @@
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.ComboBox courseName;
         private System.Windows.Forms.Label label7;
-        private System.Windows.Forms.ComboBox courseTime;
         private System.Windows.Forms.Button goFuck;
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.TextBox teacher;
         private System.Windows.Forms.LinkLabel setPython;
+        private System.Windows.Forms.TextBox courseTime;
     }
 }
 

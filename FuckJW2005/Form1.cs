@@ -407,12 +407,10 @@ namespace FuckJW2005
             {
                 Invoke(new ThreadStart(delegate
                 {
-                    courseTime.Items.Clear();
                     var match_string = time_spec_total.Result("${data}");
                     var time = Regex.Match(match_string, time_ptr2);
                     while (time.Success)
                     {
-                        courseTime.Items.Add(time.Result("${value}"));
                         time_list.Add(time.Result("${value}"));
                         time = time.NextMatch();
                     }
