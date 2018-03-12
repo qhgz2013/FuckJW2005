@@ -1,15 +1,15 @@
 # FuckJW2005
 言简意赅，专门怼教务（绝望）2005的小程序
 
-### 软件下载
-> [点击进入下载目录](https://github.com/qhgz2013/FuckJW2005/releases)
+### 软件下载和使用
+ [点击进入下载目录](https://github.com/qhgz2013/FuckJW2005/releases)
+ 
+ 选择最新版本下的`windows.zip`下载，运行exe即可。若运行不成功，可尝试安装.net Framework 4.0
 
 ### 说明
 本软件仍在测试中。。。如有bug还请反映。。
 
 （PS别吐槽代码风格，这个坑是从大一下开的，刚开始被c++教做人，异步和python什么的都没怎么学，重构计划无限鸽）
-
-运行要求：.net Framework 4.0
 
 ### 验证码识别
 识别网络：简单的CNN网络
@@ -27,6 +27,21 @@
 - `tensorflow`
 - `keras`
 - `h5py`
+
+搭建python的运行环境：
+1. 在[Python官网](https://www.python.org/downloads/)上下载Python 3.6（记得留意选的是32-bit还是64-bit，在标题上会显示）
+2. 安装python时勾上安装pip
+3. 下载`numpy`依赖包：Windows版的numpy下载页面在[这里](https://www.lfd.uci.edu/~gohlke/pythonlibs/#numpy)，64bit的python选择`numpy‑x.x.x+mkl‑cp36‑cp36m‑win_amd64.whl`，32bit的python选择`numpy‑x.x.x+mkl‑cp36‑cp36m‑win32.whl`
+4. 在下载后打开该文件夹，按下Shift+鼠标右键，在此处打开PowerShell，输入
+```bash
+pip install numpy-x.x.x+mkl-cp36-cp36m-winxxx.whl
+```
+右边的whl替换为下载时的文件名
+
+5. 继续安装其他依赖包
+```bash
+pip install h5py scikit-image tensorflow keras
+```
 
 #### 1.1 使用预训练CNN模型
 预训练的模型文件可在[这里](./ocr_project/nn_model.h5)下载，使用可见下面代码
@@ -86,9 +101,13 @@ def set_vram_growth():
 训练集 2K，迭代次数 100，成功率 ~99%
 
 ### 更新
+v1.6 & v1.5
+- 修复issue提到的bug
+
 v1.4
 - 修复下标越界bug
 - 增加对课程时间的显示
+
 v1.3
 - 完成验证码识别
 
