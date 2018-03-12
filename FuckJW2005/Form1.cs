@@ -580,6 +580,11 @@ namespace FuckJW2005
             try
             {
                 ns.HttpPost(url, post_data, NetStream.DEFAULT_CONTENT_TYPE_PARAM, header);
+                if (ns.HTTP_Response.StatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    debug_output("HTTP错误：服务器返回" + (int)ns.HTTP_Response.StatusCode + "(" + ns.HTTP_Response.StatusDescription + ")");
+                    return false; //status check
+                }
                 var response_str = ns.ReadResponseString(Encoding.Default);
                 return check_course_selected(response_str.Replace("\r", "").Replace("\n", ""));
             }
@@ -598,13 +603,15 @@ namespace FuckJW2005
             try
             {
                 //init
-                string course_name = "", teacher_name = "";
+                string course_name = "", teacher_name = "", course_time = "";
                 Invoke(new ThreadStart(delegate
                 {
                     courseName.Enabled = false;
                     teacher.Enabled = false;
+                    courseTime.Enabled = false;
                     course_name = courseName.Text;
                     teacher_name = teacher.Text;
+                    course_time = courseTime.Text;
                     goFuck.Enabled = true;
                     goFuck.Text = "不干";
                 }));
@@ -617,7 +624,7 @@ namespace FuckJW2005
                 //getting course_name
                 courses course = course_list.Find((courses obj) =>
                 {
-                    return (obj.Name == course_name && obj.Teacher == teacher_name);
+                    return (obj.Name == course_name && obj.Teacher == teacher_name && obj.Time == course_time);
                 });
 
                 if (!string.IsNullOrEmpty(course.CheckBoxStr))
@@ -629,6 +636,10 @@ namespace FuckJW2005
                         suc = submit_course_data(course.CheckBoxStr);
                         Thread.Sleep(3000);
                     } while (!suc);
+                }
+                else
+                {
+                    debug_output("未找到相关课程，大概是个bug吧");
                 }
             }
             catch (ThreadAbortException) { }
@@ -643,6 +654,7 @@ namespace FuckJW2005
                 {
                     courseName.Enabled = true;
                     teacher.Enabled = true;
+                    courseTime.Enabled = true;
                     goFuck.Text = "开干";
                     threadUsing = false;
                 }));

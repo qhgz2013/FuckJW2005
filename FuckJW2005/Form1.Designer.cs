@@ -195,16 +195,16 @@
             this.label6.AutoSize = true;
             this.label6.Location = new System.Drawing.Point(11, 171);
             this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(95, 12);
+            this.label6.Size = new System.Drawing.Size(53, 12);
             this.label6.TabIndex = 1;
-            this.label6.Text = "课程名称/代号 *";
+            this.label6.Text = "课程名称";
             // 
             // courseName
             // 
             this.courseName.FormattingEnabled = true;
-            this.courseName.Location = new System.Drawing.Point(112, 168);
+            this.courseName.Location = new System.Drawing.Point(75, 168);
             this.courseName.Name = "courseName";
-            this.courseName.Size = new System.Drawing.Size(154, 20);
+            this.courseName.Size = new System.Drawing.Size(219, 20);
             this.courseName.TabIndex = 6;
             this.courseName.SelectedIndexChanged += new System.EventHandler(this.courseName_SelectedIndexChanged);
             this.courseName.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.courseName_KeyPress);
@@ -240,10 +240,10 @@
             // 
             // teacher
             // 
-            this.teacher.Location = new System.Drawing.Point(112, 199);
+            this.teacher.Location = new System.Drawing.Point(75, 199);
             this.teacher.Name = "teacher";
             this.teacher.ReadOnly = true;
-            this.teacher.Size = new System.Drawing.Size(154, 21);
+            this.teacher.Size = new System.Drawing.Size(219, 21);
             this.teacher.TabIndex = 7;
             this.teacher.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.teacher_KeyPress);
             // 
@@ -261,7 +261,7 @@
             // 
             // courseTime
             // 
-            this.courseTime.Location = new System.Drawing.Point(112, 228);
+            this.courseTime.Location = new System.Drawing.Point(75, 228);
             this.courseTime.Name = "courseTime";
             this.courseTime.ReadOnly = true;
             this.courseTime.Size = new System.Drawing.Size(219, 21);
