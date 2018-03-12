@@ -328,6 +328,10 @@ namespace FuckJW2005
             //public string Address;
             public string Time;
             //public string Belonging;
+            public override string ToString()
+            {
+                return Name + "(" + Teacher + ")";
+            }
 
         }
 
@@ -416,6 +420,13 @@ namespace FuckJW2005
                     }
                 }));
             }
+            else
+            {
+                debug_output("获取选课失败，若重复出现，可重新启动程序重试");
+                debug_output("返回内容：" + response_str);
+                Thread.Sleep(3000);
+                get_public_course((bool)e);
+            }
 
             //parsing __VIEWSTATE
             var match = Regex.Match(response_str, "<input\\stype=\"hidden\"\\sname=\"__VIEWSTATE\"\\svalue=\"(?<value>[^\"]*?)\"\\s*/>");
@@ -435,7 +446,7 @@ namespace FuckJW2005
             course_list = new List<courses>();
             var ptn_course_table = "<fieldset><legend>可选课程</legend>(?<data>.*?)</fieldset>";
             var course_table_str = Regex.Match(response_str, ptn_course_table).Result("${data}");
-            match = Regex.Match(course_table_str, "<tr>(?<data>.*?)</tr>");
+            match = Regex.Match(course_table_str, "<tr(\\sclass=\"alt\")?>(?<data>.*?)</tr>");
             while (match.Success)
             {
                 var crs = new courses();
@@ -455,19 +466,13 @@ namespace FuckJW2005
                 sub_info2 = Regex.Match(sub_info.Result("${data}"), "<a.*?>(?<name>.+?)</a>");
                 crs.Teacher = sub_info2.Result("${name}");
                 sub_info = sub_info.NextMatch();
+                //sect 4 time
+                var sub_info3 = Regex.Match(sub_info.Value, "<td\\stitle=\"(?<time>.*?)\">.*?</td>");
+                crs.Time = sub_info3.Result("${time}");
                 match = match.NextMatch();
-
                 //todo: add more column
 
                 course_list.Add(crs);
-            }
-
-            if (course_list.Count == time_list.Count)
-            {
-                for (int i = 0; i < course_list.Count; i++)
-                {
-                    course_list[i].Time = time_list[i];
-                }
             }
 
             if ((bool)e)
